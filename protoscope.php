@@ -16,7 +16,6 @@ class Protoscope {
 
     public function log($message)
     {
-        date_default_timezone_set('America/New_York');
         $now = date('Y-m-d H:i:s');
         error_log("[{$now}] {$message}", 3, $this->config['log']);
     }
@@ -54,6 +53,11 @@ class Protoscope {
 
     public function run()
     {
+        // set default timezone if the user doesn't have it in php.ini:
+        if (!ini_get('date.timezone')) {
+            date_default_timezone_set('America/New_York');
+        }
+
         set_time_limit(0);
 
         $client = array();
