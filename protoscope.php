@@ -38,8 +38,10 @@ class Protoscope {
         }
 
         if (!empty($headers)) {
-            // FIXME: Sending headers breaks Google. Why?
-            // $options['header'] = $headers;
+            $options['header'] = array_filter($headers, function($val) {
+                // remove the Keep-Alive header
+                return strpos($val, 'Keep-Alive:') !== 0;
+            });
         }
 
         $options = array('http' => $options);
