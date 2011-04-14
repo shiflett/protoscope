@@ -2,7 +2,10 @@
 <?php
 
 $protoscope = new Protoscope;
-$protoscope->run();
+// you can alter the default config with something like this:
+// $ echo '{"port": 8080}' | ./protoscope.php
+$config = json_decode(file_get_contents('php://stdin'), true);
+$protoscope->run($config);
 
 class Protoscope {
 
@@ -51,14 +54,19 @@ class Protoscope {
         }
     }
 
-    public function run()
+    public function run($config)
     {
+        // prefer user-supplied config:
+        $this->config = (array)$config + $this->config;
+
         // set default timezone if the user doesn't have it in php.ini:
         if (!ini_get('date.timezone')) {
             date_default_timezone_set('America/New_York');
         }
 
         set_time_limit(0);
+
+        $this->log("Starting protoscope: {$this->config['ip']}:{$this->config['port']}\n");
 
         $client = array();
         $server = array();
