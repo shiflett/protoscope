@@ -121,6 +121,7 @@ class Protoscope {
                             case 'connection':
                                 // Do not support persistent connections yet.
                                 $server['headers'][] = 'Connection: close';
+                                break;
                             default:
                                 $server['headers'][] = "{$name}: {$value}";
                                 break;
