@@ -38,10 +38,7 @@ class Protoscope {
         }
 
         if (!empty($headers)) {
-            $options['header'] = array_filter($headers, function($val) {
-                // remove the Keep-Alive header
-                return strpos($val, 'Keep-Alive:') !== 0;
-            });
+            $options['header'] = $headers;
         }
 
         $options = array('http' => $options);
@@ -116,7 +113,8 @@ class Protoscope {
 
                         switch (strtolower($name)) {
                             case 'accept-encoding':
-                                // Do not accept encoding.
+                            case 'keep-alive':
+                            case 'pragma':
                                 break;
                             case 'connection':
                                 // Do not support persistent connections yet.
