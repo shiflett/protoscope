@@ -116,7 +116,6 @@ class Protoscope {
                         // Use this to omit or modify headers to be sent to the server.
                         switch (strtolower($name)) {
                             case 'accept-encoding':
-                            case 'cookie':
                             case 'keep-alive':
                             case 'pragma':
                                 break;
