@@ -18,9 +18,8 @@ binds to `127.0.0.1` on port `4887`.
 
 Browse the Web, and your HTTP requests are shown to you at the bottom of each
 page. This is useful for debugging a number of issues, including session
-problems, caching problems, etc. all HTTP traffic is also sent to `stdout`,
-which you can send to a log file if you want by starting the proxy as
-follows:
+problems, caching problems, etc. HTTP traffic is also sent to `stdout`, which
+you can send to a log file if you want by starting the proxy as follows:
 
 	./protoscope.php > /tmp/protoscope.log
 
