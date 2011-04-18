@@ -2,10 +2,7 @@
 <?php
 
 $protoscope = new Protoscope;
-// you can alter the default config with something like this:
-// $ echo '{"port": 8080}' | ./protoscope.php
-$config = json_decode(file_get_contents('php://stdin'), true);
-$protoscope->run($config);
+$protoscope->run();
 
 class Protoscope {
 
@@ -14,58 +11,66 @@ class Protoscope {
     // Set default config options.
     protected $config = array('ip' => '127.0.0.1',
                               'port' => '4887',
-                              'log' => '/tmp/protoscope.log',
                               'embed' => TRUE);
 
     public function log($message)
     {
         $now = date('Y-m-d H:i:s');
-        error_log("[{$now}] {$message}", 3, $this->config['log']);
+        echo "[{$now}] {$message}";
     }
 
-    protected function request($method, $url, $content = '', $headers = array())
+    protected function request($url, $request)
     {
-        // Only deal with GET and POST for now.
-        if ($method != 'GET' && $method != 'POST') {
+        $this->log("    request([{$url}], ...)\n");
+
+        // Parse URL.
+        $url = parse_url($url);
+
+        switch ($url['scheme']) {
+            case 'http':
+                $port = 80;
+                break;
+            case 'https':
+                $port = 443;
+                break;
+            default:
+                $this->log("        URL has no scheme. Assuming port [{$url['port']}].\n");
+                $port = $url['port'];
+                if (substr($request, 0, 7) == 'CONNECT') {
+                    $this->log("        CONNECT not yet supported. Responding with 405. \n");
+                    $this->log("        For more info: https://github.com/shiflett/protoscope/issues/2\n");
+                    return "HTTP/1.1 405 Method Not Allowed\r\n\r\n";
+                }
+                break;
+        }
+
+        // Open a connection to the server.
+        $this->log("        fsockopen([{$url['host']}][{$port}])\n");
+        if (!$stream = fsockopen($url['host'], $port, $error, $message)) {
+            $this->log("[{$error}][{$message}]\n");
             return;
         }
 
-        // Build $options array based on input.
-        $options = array('method' => $method, 'ignore_errors' => TRUE);
-
-        if (!empty($data)) {
-            $options['content'] = $content;
+        // Write the request.
+        for ($place = 0; $place < strlen($request); $place += $written) {
+            $written = fwrite($stream, substr($request, $place));
         }
+        $this->log("        [{$place}] bytes written.\n");
 
-        if (!empty($headers)) {
-            $options['header'] = $headers;
-        }
-
-        $options = array('http' => $options);
-
-        // Create context.
-        $context = stream_context_create($options);
-
-        if (!$stream = fopen($url, 'rb', FALSE, $context)) {
-            $this->log("[{$php_errormsg}]\n");
-        } else {
-            return stream_get_contents($stream);
-        }
+        // Return the response.
+        return stream_get_contents($stream);
     }
 
-    public function run($config)
+    public function run()
     {
-        // prefer user-supplied config:
-        $this->config = (array)$config + $this->config;
-
-        // set default timezone if the user doesn't have it in php.ini:
+        // Set default timezone if it's not set in php.ini.
         if (!ini_get('date.timezone')) {
             date_default_timezone_set('America/New_York');
         }
 
         set_time_limit(0);
 
-        $this->log("Starting protoscope: {$this->config['ip']}:{$this->config['port']}\n");
+        $this->log("Protoscope [{$this->config['ip']}:{$this->config['port']}]\n");
 
         $client = array();
         $server = array();
@@ -101,9 +106,6 @@ class Protoscope {
                     $this->log("    [{$client['content']}]\n");
                 }
 
-                // Build request to send to the server.
-                list($server['method'], $server['url'], $server['protocol']) = explode(' ', $client['headers'][0]);
-
                 $server['headers'] = array();
 
                 foreach ($client['headers'] as $key => $header) {
@@ -111,14 +113,16 @@ class Protoscope {
                     if ($key) {
                         list ($name, $value) = explode(': ', $header);
 
+                        // Use this to omit or modify headers to be sent to the server.
                         switch (strtolower($name)) {
                             case 'accept-encoding':
+                            case 'cookie':
                             case 'keep-alive':
                             case 'pragma':
                                 break;
                             case 'connection':
-                                // Do not support persistent connections yet.
-                                $server['headers'][] = 'Connection: close';
+                            case 'proxy-connection':
+                                $server['headers'][] = "Connection: close";
                                 break;
                             default:
                                 $server['headers'][] = "{$name}: {$value}";
@@ -127,16 +131,29 @@ class Protoscope {
                     }
                 }
 
+                // Parse request line.
+                list($server['method'], $server['url'], $server['protocol']) = explode(' ', $client['headers'][0]);
+
+                // Build request.
+                $server['request'] = $client['headers'][0] . "\r\n" . implode("\r\n", $server['headers']);
+
+                // Add content.
+                $server['request'] .= "\r\n\r\n" . $client['content'];
+
                 // Send request to server.
                 $this->log("Request\n");
-                $this->log("    [{$server['method']}] [{$server['url']}]\n");
-                $server['response'] = $this->request($server['method'], $server['url'], $client['content'], $server['headers']);
+                $this->log("    [{$client['headers'][0]}]\n");
+                $server['response'] = $this->request($server['url'], $server['request']);
 
-                $server['response'] .= '<div id="protoscope"><pre style="text-align: left; padding: 10px; border-top: #ccc solid 1px">';
-                foreach ($client['headers'] as $header) {
-                    $server['response'] .= "{$header}\n";
+                // FIXME: Only embed in text/html responses.
+                // FIXME: Handle chunked encoding. This will be ignored.
+                if ($this->config['embed']) {
+                    $server['response'] .= '<div id="protoscope"><pre style="text-align: left; padding: 10px; border-top: #ccc solid 1px; background: #eee">';
+                    foreach ($client['headers'] as $header) {
+                        $server['response'] .= "{$header}\n";
+                    }
+                    $server['response'] .= '</pre></div>';
                 }
-                $server['response'] .= '</pre></div>';
 
                 // Send response to client.
                 $this->log("Response\n");
