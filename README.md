@@ -1,12 +1,10 @@
 Protoscope: an HTTP proxy for inspecting and debugging HTTP
 ===========================================================
-by Chris Shiflett
------------------
 
 Requirements
 ------------
 
-* [PHP](http://php.net/)
+- [PHP](http://php.net/)
 
 Usage
 -----
@@ -34,5 +32,7 @@ Known Issues
 
 The following issues will be addressed in future releases:
 
-- No support for tunneling, so no SSL
+- No support for tunneling, so no SSL.
 - No embed support for chunked encoding.
+
+Also see the [open issues][https://github.com/shiflett/protoscope/issues].
