@@ -34,4 +34,4 @@ The following issues will be addressed in future releases:
 - No support for tunneling, so no SSL.
 - No embed support for chunked encoding.
 
-Also see the [open issues][https://github.com/shiflett/protoscope/issues].
+Also see the [open issues](https://github.com/shiflett/protoscope/issues).
